@@ -5,7 +5,7 @@ MCU. The MCU then drives a 'slave' flash (via an optocoupler). See the
 OpticalSlaveTriggerSchematic.png for component details.
 
 doc/OpticalSlaveTriggerSchematic.png:
-- Original schematic intended for used with a PIC processor. However, this
+- Original schematic intended for used with a ATTiny processor. However, this
 project uses the STM8S MCU. Schematic should be updated in due course.
 
 doc/OpticalSlaveStateMachine.png:

@@ -1,14 +1,12 @@
 /*==============================================================================
- * MODULE: main
- * DESCRIPTION: The main module for the Optical Slave Trigger
+ * MODULE: Timer
+ * DESCRIPTION: Uses TIM4 block to generate 1msec interrupts
  *============================================================================*/
 /*==============================================================================
  * INCLUDES
  *============================================================================*/
-#include "config.h"
-#include "gpio.h"
+#include <stm8s.h>
 #include "timer.h"
-#include "state_machine.h"
 /*==============================================================================
  * CONSTANTS
  *============================================================================*/
@@ -18,17 +16,22 @@
 /*==============================================================================
  * TYPEDEFs and STRUCTs
  *============================================================================*/
-/*==============================================================================
- * LOCAL FUNCTION PROTOTYPES
- *============================================================================*/
-// Callbacks
-static OT_TIMER_CB_T ot_timer_cb;
-static OT_GPIO_CB_T  ot_gpio_cb;
+typedef enum OT_TIMER_STATE_S {
+  OT_TIMER_STATE_STOP,
+  OT_TIMER_STATE_START,
+  OT_TIMER_STATE_MAX    // Not a real state
+} OT_TIMER_STATE_T;
 /*==============================================================================
  * LOCAL VARIABLES
  *============================================================================*/
+static OT_TIMER_STATE_T ot_timer_state  = OT_TIMER_STATE_STOP;
+static OT_TIMER_CB_T    *ot_timer_cb    = (void*)0;
+static void             *ot_timer_cbarg = (void*)0;
 /*==============================================================================
  * GLOBAL (extern) VARIABLES
+ *============================================================================*/
+/*==============================================================================
+ * LOCAL FUNCTION PROTOTYPES
  *============================================================================*/
 /*==============================================================================
  * LOCAL FUNCTIONS
@@ -42,27 +45,13 @@ static OT_GPIO_CB_T  ot_gpio_cb;
  * @caution
  * @notes
  *============================================================================*/
-// Called by Timer module's interrupt upon expiry of a period (1msec)
-static void ot_timer_cb(void *cbarg) {
-  (void)cbarg; // Unused
-  // Send Timeout event to State Machine
-  OT_SM_execute(OT_SM_EVENT_TIMEOUT);
-  return;
-}
-/*==============================================================================
- * DESCRIPTION:
- * @param
- * @return
- * @precondition
- * @postcondition
- * @caution
- * @notes
- *============================================================================*/
-// Called by the GPIO module's interrupt upon detection of a flash burst
-static void ot_gpio_cb(void *cbarg) {
-  (void)cbarg; // Unused
-  // Send Flash Detected event to State Machine
-  OT_SM_execute(OT_SM_EVENT_FLASH_DETECTED);
+static void tim4_isr_ovf(void) __interrupt(ITC_IRQ_TIM4_OVF) {
+  if (TIM4_GetITStatus(TIM4_IT_UPDATE)) {
+    if ((void*)0 != ot_timer_cb) {
+      (*ot_timer_cb)(ot_timer_cbarg);
+    }
+    TIM4_ClearITPendingBit(TIM4_IT_UPDATE);
+  }
   return;
 }
 /*==============================================================================
@@ -77,20 +66,46 @@ static void ot_gpio_cb(void *cbarg) {
  * @caution
  * @notes
  *============================================================================*/
-/*============================================================================*/
-void main(void) {
-  /* Config Clock - N/A (Default is 2MHz) */
-  OT_GPIO_init(ot_gpio_cb, (void*)0);
-  OT_TIMER_init(ot_timer_cb, (void*)0);
-  OT_SM_init();
-#if defined(TIMER_DEBUG)
-  // State machine will automatically enter READY state after expiry of
-  // debug timer
-#else
-  // Send a 'init done' message to the state machine so it's ready to handle
-  // Flash bursts
-  OT_SM_execute(OT_SM_EVENT_INIT_COMPLETE);
-#endif // TIMER_DEBUG
-  enableInterrupts();
-  while (1) { wfi(); }
+void OT_TIMER_init(OT_TIMER_CB_T *cb, void* cbarg) {
+  ot_timer_cb = cb;
+  ot_timer_cbarg = cbarg;
+  OT_TIMER_stop();
+  return;
 }
+/*==============================================================================
+ * DESCRIPTION:
+ * @param
+ * @return
+ * @precondition
+ * @postcondition
+ * @caution
+ * @notes
+ *============================================================================*/
+void OT_TIMER_start(void) {
+  // Stop currently running timer
+  OT_TIMER_stop();
+  // Set period
+  TIM4_TimeBaseInit(TIM4_PRESCALER_16, 131); // 1msec period
+  // Clear interrupts
+  TIM4_ClearFlag(TIM4_FLAG_UPDATE);
+  TIM4_ITConfig(TIM4_IT_UPDATE, ENABLE);
+  // Start timer
+  TIM4_Cmd(ENABLE);
+  ot_timer_state = OT_TIMER_STATE_START;
+  return;
+}
+/*==============================================================================
+ * DESCRIPTION:
+ * @param
+ * @return
+ * @precondition
+ * @postcondition
+ * @caution
+ * @notes
+ *============================================================================*/
+void OT_TIMER_stop(void) {
+  TIM4_DeInit();
+  ot_timer_state = OT_TIMER_STATE_STOP;
+  return;
+}
+/*============================================================================*/

@@ -37,24 +37,6 @@ static void             *ot_timer_cbarg = (void*)0;
  * LOCAL FUNCTIONS
  *============================================================================*/
 /*==============================================================================
- * DESCRIPTION:
- * @param
- * @return
- * @precondition
- * @postcondition
- * @caution
- * @notes
- *============================================================================*/
-static void tim4_isr_ovf(void) __interrupt(ITC_IRQ_TIM4_OVF) {
-  if (TIM4_GetITStatus(TIM4_IT_UPDATE)) {
-    if ((void*)0 != ot_timer_cb) {
-      (*ot_timer_cb)(ot_timer_cbarg);
-    }
-    TIM4_ClearITPendingBit(TIM4_IT_UPDATE);
-  }
-  return;
-}
-/*==============================================================================
  * EXPORTED (GLOBAL) FUNCTIONS
  *============================================================================*/
 /*==============================================================================
@@ -106,6 +88,24 @@ void OT_TIMER_start(void) {
 void OT_TIMER_stop(void) {
   TIM4_DeInit();
   ot_timer_state = OT_TIMER_STATE_STOP;
+  return;
+}
+/*==============================================================================
+ * DESCRIPTION:
+ * @param
+ * @return
+ * @precondition
+ * @postcondition
+ * @caution
+ * @notes
+ *============================================================================*/
+void tim4_isr_ovf(void) __interrupt(ITC_IRQ_TIM4_OVF) {
+  if (TIM4_GetITStatus(TIM4_IT_UPDATE)) {
+    if ((void*)0 != ot_timer_cb) {
+      (*ot_timer_cb)(ot_timer_cbarg);
+    }
+    TIM4_ClearITPendingBit(TIM4_IT_UPDATE);
+  }
   return;
 }
 /*============================================================================*/

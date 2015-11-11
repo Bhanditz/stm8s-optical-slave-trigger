@@ -29,6 +29,7 @@ typedef void (OT_GPIO_CB_T)(void *cbarg);
  * EXPORTED (GLOBAL) FUNCTIONS
  *============================================================================*/
 void OT_GPIO_init(OT_GPIO_CB_T *cb, void *cbarg);
+void ot_gpio_isr(void) __interrupt(ITC_IRQ_PORTB);
 /*============================================================================*/
 #ifdef __cplusplus
 }

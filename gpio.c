@@ -30,11 +30,6 @@ static void         *ot_gpio_cbarg = (void*)0;
 /*==============================================================================
  * LOCAL FUNCTIONS
  *============================================================================*/
-static void ot_gpio_isr(void) __interrupt(ITC_IRQ_PORTB) {
-  // This ISR detects a flash burst. Inform the state machine.
-  if ((void*)0 != ot_gpio_cb) (*ot_gpio_cb)(ot_gpio_cbarg);
-  return;
-}
 /*==============================================================================
  * EXPORTED (GLOBAL) FUNCTIONS
  *============================================================================*/
@@ -67,6 +62,21 @@ void OT_GPIO_init(OT_GPIO_CB_T *cb, void *cbarg) {
   GPIO_Init(RED_LED_PORT, RED_LED_PIN, GPIO_MODE_OUT_PP_LOW_SLOW);
   RED_LED_OFF();
 
+  return;
+}
+
+/*==============================================================================
+ * DESCRIPTION:
+ * @param
+ * @return
+ * @precondition
+ * @postcondition
+ * @caution
+ * @notes
+ *============================================================================*/
+void ot_gpio_isr(void) __interrupt(ITC_IRQ_PORTB) {
+  // This ISR detects a flash burst. Inform the state machine.
+  if ((void*)0 != ot_gpio_cb) (*ot_gpio_cb)(ot_gpio_cbarg);
   return;
 }
 /*============================================================================*/

@@ -31,6 +31,7 @@ typedef void (OT_TIMER_CB_T)(void* cbarg);
 void OT_TIMER_init(OT_TIMER_CB_T *cb, void* cbarg);
 void OT_TIMER_start(void);
 void OT_TIMER_stop(void);
+void tim4_isr_ovf(void) __interrupt(ITC_IRQ_TIM4_OVF);
 /*============================================================================*/
 #ifdef __cplusplus
 }

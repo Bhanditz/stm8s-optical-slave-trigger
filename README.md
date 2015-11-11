@@ -11,5 +11,6 @@ project uses the STM8S MCU. Schematic should be updated in due course.
 ## doc/OpticalSlaveStateMachine.png:
 - Initial outline of the State Machine to implement on the STM8S.
 
-## pinout.txt - Port/Pin assignments for different targets
-- Currently only supported target is the STM8S-DISCOVERY board (used for prototyping)
+## pinout.txt
+- Port/Pin assignments for different targets
+- Currently the only supported target is the STM8S-DISCOVERY board (used for prototyping).

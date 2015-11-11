@@ -18,7 +18,7 @@ extern "C"
  *============================================================================*/
 // Feature Defines
 #define DEBUG          // General debug
-#define TIMER_DEBUG    // Use timer to delay entry into READY state by 1 sec
+//#define TIMER_DEBUG    // Use timer to delay entry into READY state by 1 sec
 
 // SENSOR_ENABLE Output Pushpull Low impedance Slow
 #define SENSOR_ENABLE_PORT    GPIOA

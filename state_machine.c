@@ -106,19 +106,6 @@ static OT_SM_DATA_T ot_sm_data = {
  * @caution
  * @notes
  *============================================================================*/
-static void OT_SM_delay(void) {
-  uint16_t delay = 0;
-  while (delay < 30000) ++delay;
-}
-/*==============================================================================
- * DESCRIPTION:
- * @param
- * @return
- * @precondition
- * @postcondition
- * @caution
- * @notes
- *============================================================================*/
 // Note that we allow ourselves to re-enter the current state
 static void ot_sm_set_state(OT_SM_STATE_T state_in) {
   if (state_in < OT_SM_STATE_MAX) {
@@ -313,11 +300,12 @@ static void ot_sm_provisional_exit(void) {
  *============================================================================*/
 static void ot_sm_confirmed_entry(void) {
 #if defined(DEBUG)
-  // @todo - flash RED LED for burst_count times
+  // Flash RED LED for burst_count times
   uint8_t i;
   for (i=0; i < ot_sm_data.burst_count; ++i) {
-    RED_LED_ON(); OT_SM_delay();
-    RED_LED_OFF(); OT_SM_delay();
+#define OT_SM_BUSYWAIT_DELAY_MS  500
+    RED_LED_ON(); OT_TIMER_busywait_ms(OT_SM_BUSYWAIT_DELAY_MS);
+    RED_LED_OFF(); OT_TIMER_busywait_ms(OT_SM_BUSYWAIT_DELAY_MS);
   }
 #else
   TRIGGER_OUT_ON(); // Trigger the slave flash

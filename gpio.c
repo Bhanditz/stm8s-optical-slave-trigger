@@ -64,6 +64,9 @@ void OT_GPIO_init(OT_GPIO_CB_T *cb, void *cbarg) {
   GPIO_Init(GREEN_LED_PORT, GREEN_LED_PIN, GPIO_MODE_OUT_PP_LOW_SLOW);
   GREEN_LED_OFF();
 
+  GPIO_Init(RED_LED_PORT, RED_LED_PIN, GPIO_MODE_OUT_PP_LOW_SLOW);
+  RED_LED_OFF();
+
   return;
 }
 /*============================================================================*/

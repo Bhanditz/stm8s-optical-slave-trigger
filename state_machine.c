@@ -32,7 +32,7 @@ typedef struct OT_SM_HANDLERS_S {
 } OT_SM_HANDLERS_T;
 
 typedef struct OT_SM_DATA_S {
-  OT_SM_STATE_T volatile ot_sm_state;
+  OT_SM_STATE_T volatile state;
   uint8_t       volatile burst_count;
   uint16_t      volatile timeout_ms;
 } OT_SM_DATA_T;
@@ -87,7 +87,7 @@ static OT_SM_HANDLERS_T ot_sm_handlers[OT_SM_STATE_MAX] = {
 };
 
 static OT_SM_DATA_T ot_sm_data = {
-  .ot_sm_state = OT_SM_STATE_INIT,
+  .state       = OT_SM_STATE_INIT,
   .burst_count = 0,
   .timeout_ms  = 0
 };
@@ -106,22 +106,35 @@ static OT_SM_DATA_T ot_sm_data = {
  * @caution
  * @notes
  *============================================================================*/
+static void OT_SM_delay(void) {
+  uint16_t delay = 0;
+  while (delay < 30000) ++delay;
+}
+/*==============================================================================
+ * DESCRIPTION:
+ * @param
+ * @return
+ * @precondition
+ * @postcondition
+ * @caution
+ * @notes
+ *============================================================================*/
 static void ot_sm_set_state(OT_SM_STATE_T state_in) {
-  if (state_in < OT_SM_STATE_MAX && ot_sm_data.ot_sm_state < OT_SM_STATE_MAX) {
+  if (state_in < OT_SM_STATE_MAX && ot_sm_data.state < OT_SM_STATE_MAX) {
     OT_SM_ENTRY_FUNC_T *entryp;
     OT_SM_EXIT_FUNC_T  *exitp;
 
     // Note that we allow ourselves to re-enter the current state
 
     // First execute the exit function of the current ot_state, if any
-    entryp = ot_sm_handlers[ot_sm_data.ot_sm_state].entryp;
+    entryp = ot_sm_handlers[ot_sm_data.state].entryp;
     if ((void*)0 != entryp) (*entryp)();
 
     // Update our state
-    ot_sm_data.ot_sm_state = state_in;
+    ot_sm_data.state = state_in;
 
     // Finally execute the entry function of the new ot_state, if any
-    exitp = ot_sm_handlers[ot_sm_data.ot_sm_state].exitp;
+    exitp = ot_sm_handlers[ot_sm_data.state].exitp;
     if ((void*)0 != exitp) (*exitp)();
   }
   return;
@@ -225,6 +238,7 @@ static void ot_sm_ready_action(OT_SM_EVENT_T event) {
  *============================================================================*/
 static void ot_sm_ready_exit(void) {
   GREEN_LED_OFF(); // Turn OFF GREEN LED to show we've exited READY
+  return;
 }
 /*==============================================================================
  * DESCRIPTION:
@@ -299,12 +313,18 @@ static void ot_sm_provisional_exit(void) {
 static void ot_sm_confirmed_entry(void) {
 #if defined(DEBUG)
   // @todo - flash RED LED for burst_count times
+  uint8_t i;
+  for (i=0; i < ot_sm_data.burst_count; ++i) {
+    RED_LED_ON(); OT_SM_delay();
+    RED_LED_OFF(); OT_SM_delay();
+  }
 #else
   TRIGGER_OUT_ON(); // Trigger the slave flash
-#endif
+#endif // DEBUG
   // set a 10msec timer
   ot_sm_data.timeout_ms = OT_SM_CONFIRMED_TIMEOUT_MS;
   OT_TIMER_start();
+  return;
 }
 /*==============================================================================
  * DESCRIPTION:
@@ -339,7 +359,9 @@ static void ot_sm_confirmed_action(OT_SM_EVENT_T event) {
 static void ot_sm_confirmed_exit(void) {
   OT_TIMER_stop();
   ot_sm_data.timeout_ms = 0;
+#if !defined(DEBUG)
   TRIGGER_OUT_OFF(); // Release the slave flash trigger
+#endif // DEBUG
   return;
 }
 /*==============================================================================
@@ -368,9 +390,9 @@ void OT_SM_init(void) {
  * @notes
  *============================================================================*/
 void OT_SM_execute(OT_SM_EVENT_T event) {
-  if (event < OT_SM_EVENT_MAX && ot_sm_data.ot_sm_state < OT_SM_STATE_MAX) {
+  if (event < OT_SM_EVENT_MAX && ot_sm_data.state < OT_SM_STATE_MAX) {
     OT_SM_ACTION_FUNC_T *actionp;
-    actionp = ot_sm_handlers[ot_sm_data.ot_sm_state].actionp;
+    actionp = ot_sm_handlers[ot_sm_data.state].actionp;
     if ((void*)0 != actionp) (*actionp)(event);
   }
   return;

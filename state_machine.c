@@ -87,7 +87,7 @@ static OT_SM_HANDLERS_T ot_sm_handlers[OT_SM_STATE_MAX] = {
 };
 
 static OT_SM_DATA_T ot_sm_data = {
-  .state       = OT_SM_STATE_INIT,
+  .state       = OT_SM_STATE_MAX,    // Invalid deliberately
   .burst_count = 0,
   .timeout_ms  = 0
 };
@@ -119,23 +119,24 @@ static void OT_SM_delay(void) {
  * @caution
  * @notes
  *============================================================================*/
+// Note that we allow ourselves to re-enter the current state
 static void ot_sm_set_state(OT_SM_STATE_T state_in) {
-  if (state_in < OT_SM_STATE_MAX && ot_sm_data.state < OT_SM_STATE_MAX) {
+  if (state_in < OT_SM_STATE_MAX) {
     OT_SM_ENTRY_FUNC_T *entryp;
-    OT_SM_EXIT_FUNC_T  *exitp;
-
-    // Note that we allow ourselves to re-enter the current state
 
     // First execute the exit function of the current ot_state, if any
-    entryp = ot_sm_handlers[ot_sm_data.state].entryp;
-    if ((void*)0 != entryp) (*entryp)();
+    if (ot_sm_data.state < OT_SM_STATE_MAX) {
+      OT_SM_EXIT_FUNC_T  *exitp;
+      exitp = ot_sm_handlers[ot_sm_data.state].exitp;
+      if ((void*)0 != exitp) (*exitp)();
+    }
 
     // Update our state
     ot_sm_data.state = state_in;
 
     // Finally execute the entry function of the new ot_state, if any
-    exitp = ot_sm_handlers[ot_sm_data.state].exitp;
-    if ((void*)0 != exitp) (*exitp)();
+    entryp = ot_sm_handlers[ot_sm_data.state].entryp;
+    if ((void*)0 != entryp) (*entryp)();
   }
   return;
 }

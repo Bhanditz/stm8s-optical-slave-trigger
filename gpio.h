@@ -12,6 +12,7 @@ extern "C"
 /*==============================================================================
  * INCLUDES
  *============================================================================*/
+#include <stm8s.h>
 /*==============================================================================
  * CONSTANTS
  *============================================================================*/
@@ -21,7 +22,7 @@ extern "C"
 /*==============================================================================
  * TYPEDEFs and STRUCTs
  *============================================================================*/
-typedef void (OT_GPIO_CB_T)(void *cbarg);
+typedef void (OT_GPIO_CB_T)(GPIO_TypeDef *port, void *cbarg);
 /*==============================================================================
  * GLOBAL (extern) VARIABLES
  *============================================================================*/
@@ -29,7 +30,11 @@ typedef void (OT_GPIO_CB_T)(void *cbarg);
  * EXPORTED (GLOBAL) FUNCTIONS
  *============================================================================*/
 void OT_GPIO_init(OT_GPIO_CB_T *cb, void *cbarg);
-void ot_gpio_isr(void) __interrupt(ITC_IRQ_PORTB);
+#if defined(_SDCC_)
+  // The SDCC compiler requires the main module to know interrupt prototypes
+  INTERRUPT_HANDLER(ot_gpiob_isr, ITC_IRQ_PORTB);
+  INTERRUPT_HANDLER(ot_gpioc_isr, ITC_IRQ_PORTC);
+#endif // _SDCC_
 /*============================================================================*/
 #ifdef __cplusplus
 }

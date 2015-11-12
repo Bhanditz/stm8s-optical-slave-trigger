@@ -32,8 +32,10 @@ void OT_TIMER_init(OT_TIMER_CB_T *cb, void* cbarg);
 void OT_TIMER_start(void);
 void OT_TIMER_stop(void);
 void OT_TIMER_busywait_ms(uint16_t delay_ms);
-
-void tim4_isr_ovf(void) __interrupt(ITC_IRQ_TIM4_OVF);
+#if defined(_SDCC_)
+  // The SDCC compiler requires the main module to know interrupt prototypes
+  INTERRUPT_HANDLER(tim4_isr_ovf, ITC_IRQ_TIM4_OVF);
+#endif // _SDCC_
 /*============================================================================*/
 #ifdef __cplusplus
 }

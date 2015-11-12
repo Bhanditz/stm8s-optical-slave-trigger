@@ -18,6 +18,7 @@ extern "C"
  *============================================================================*/
 // Feature Defines
 #define DEBUG          // General debug
+#define WAKEUP_BUTTON  // Support SLEEPING state and wake-up using BUTTON_DET
 //#define TIMER_DEBUG    // Use timer to delay entry into READY state by 1 sec
 
 // SENSOR_ENABLE Output Pushpull Low impedance Slow
@@ -27,6 +28,7 @@ extern "C"
 // TRIGGER_IN Input Floating Interrupt enabled
 #define TRIGGER_IN_PORT       GPIOB
 #define TRIGGER_IN_PIN        GPIO_PIN_7
+#define TRIGGER_IN_MODE       GPIO_MODE_IN_FL_IT
 #define TRIGGER_IN_EXTI_PORT  EXTI_PORT_GPIOB
 
 // TRIGGER_OUT Output Pushpull Low impedance Slow
@@ -40,6 +42,14 @@ extern "C"
 // RED_LED Output Pushpull Low impedance Slow
 #define RED_LED_PORT          GPIOE
 #define RED_LED_PIN           GPIO_PIN_7
+
+#if defined(WAKEUP_BUTTON)
+  // BUTTON_DET Input Pullup Interrupt enabled
+  #define BUTTON_DET_PORT       GPIOC
+  #define BUTTON_DET_PIN        GPIO_PIN_7
+  #define BUTTON_DET_MODE       GPIO_MODE_IN_PU_IT
+  #define BUTTON_DET_EXTI_PORT  EXTI_PORT_GPIOC
+#endif // WAKEUP_BUTTON
 /*==============================================================================
  * MACROS
  *============================================================================*/
@@ -61,6 +71,14 @@ extern "C"
 // RED_LED is ActiveHigh
 #define RED_LED_ON()          GPIO_WriteHigh(RED_LED_PORT, RED_LED_PIN)
 #define RED_LED_OFF()         GPIO_WriteLow(RED_LED_PORT, RED_LED_PIN)
+
+#if defined(WAKEUP_BUTTON)
+  #define BUTTON_ENABLE()     \
+    GPIO_Init(BUTTON_DET_PORT, BUTTON_DET_PIN, BUTTON_DET_MODE);
+
+  #define BUTTON_DISABLE()    \
+    GPIO_Init(BUTTON_DET_PORT, BUTTON_DET_PIN, GPIO_MODE_IN_FL_NO_IT);
+#endif // WAKEUP_BUTTON
 /*==============================================================================
  * TYPEDEFs and STRUCTs
  *============================================================================*/

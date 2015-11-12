@@ -59,10 +59,18 @@ static void ot_timer_cb(void *cbarg) {
  * @notes
  *============================================================================*/
 // Called by the GPIO module's interrupt upon detection of a flash burst
-static void ot_gpio_cb(void *cbarg) {
+static void ot_gpio_cb(GPIO_TypeDef *port, void *cbarg) {
   (void)cbarg; // Unused
-  // Send Flash Detected event to State Machine
-  OT_SM_execute(OT_SM_EVENT_FLASH_DETECTED);
+  if (TRIGGER_IN_PORT == port) {
+    // Send Flash Detected event to State Machine
+    OT_SM_execute(OT_SM_EVENT_FLASH_DETECTED);
+  }
+#if defined(WAKEUP_BUTTON)
+  else if (BUTTON_DET_PORT == port) {
+    // Send Button Press event to State Machine
+    OT_SM_execute(OT_SM_EVENT_BUTTON_PRESS);
+  }
+#endif // WAKEUP_BUTTON
   return;
 }
 /*==============================================================================

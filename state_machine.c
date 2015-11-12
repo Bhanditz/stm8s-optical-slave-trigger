@@ -11,7 +11,8 @@
 /*==============================================================================
  * CONSTANTS
  *============================================================================*/
-#define OT_SM_INIT_TIMEOUT_MS           1000 // Used when TIMER_DEBUG is defined
+#define OT_SM_INIT_TIMEOUT_MS           1000 // #if defined(TIMER_DEBUG)
+#define OT_SM_READY_TIMEOUT_MS          60000 // #if defined(WAKEUP_BUTTON)
 #define OT_SM_PROVISIONAL_TIMEOUT_MS    100
 #define OT_SM_CONFIRMED_TIMEOUT_MS      10
 /*==============================================================================
@@ -34,7 +35,7 @@ typedef struct OT_SM_HANDLERS_S {
 typedef struct OT_SM_DATA_S {
   OT_SM_STATE_T volatile state;
   uint8_t       volatile burst_count;
-  uint16_t      volatile timeout_ms;
+  uint16_t      volatile timeout_ms; // Upto 65.536 sec
 } OT_SM_DATA_T;
 /*==============================================================================
  * LOCAL FUNCTION PROTOTYPES
@@ -55,6 +56,11 @@ static OT_SM_EXIT_FUNC_T   ot_sm_provisional_exit;
 static OT_SM_ENTRY_FUNC_T  ot_sm_confirmed_entry;
 static OT_SM_ACTION_FUNC_T ot_sm_confirmed_action;
 static OT_SM_EXIT_FUNC_T   ot_sm_confirmed_exit;
+#if defined(WAKEUP_BUTTON)
+static OT_SM_ENTRY_FUNC_T  ot_sm_sleeping_entry;
+static OT_SM_ACTION_FUNC_T ot_sm_sleeping_action;
+static OT_SM_EXIT_FUNC_T   ot_sm_sleeping_exit;
+#endif // WAKEUP_BUTTON
 /*==============================================================================
  * LOCAL VARIABLES
  *============================================================================*/
@@ -84,6 +90,15 @@ static OT_SM_HANDLERS_T ot_sm_handlers[OT_SM_STATE_MAX] = {
     &ot_sm_confirmed_action,
     &ot_sm_confirmed_exit
   }
+#if defined(WAKEUP_BUTTON)
+  ,
+  // OT_SM_STATE_SLEEPING
+  {
+    &ot_sm_sleeping_entry,
+    &ot_sm_sleeping_action,
+    &ot_sm_sleeping_exit
+  }
+#endif // WAKEUP_BUTTON
 };
 
 static OT_SM_DATA_T ot_sm_data = {
@@ -197,7 +212,11 @@ static void ot_sm_init_exit(void) {
 static void ot_sm_ready_entry(void) {
   GREEN_LED_ON(); // Turn ON GREEN LED to show we're in READY
   ot_sm_data.burst_count = 0; // Reset our internal counters
-  return;
+#if defined(WAKEUP_BUTTON)
+  // Set a timer to enter sleep if there is no user activity
+  ot_sm_data.timeout_ms = OT_SM_READY_TIMEOUT_MS;
+  OT_TIMER_start(); // sends TIMEOUT events every ~1msec  return;
+#endif // WAKEUP_BUTTON
 }
 /*==============================================================================
  * DESCRIPTION:
@@ -212,6 +231,15 @@ static void ot_sm_ready_action(OT_SM_EVENT_T event) {
   if (OT_SM_EVENT_FLASH_DETECTED == event) {
     ot_sm_set_state(OT_SM_STATE_PROVISIONAL);
   }
+#if defined(WAKEUP_BUTTON)
+  else if (OT_SM_EVENT_TIMEOUT == event) {
+    // decrement out timeout_ms count
+    if (0 == --ot_sm_data.timeout_ms) { // Waiting period has expired
+      // We waited long enough for user action
+      ot_sm_set_state(OT_SM_STATE_SLEEPING);
+    }
+  }
+#endif // WAKEUP_BUTTON
   // Ignore all other events and stay in the same state
   return;
 }
@@ -225,6 +253,11 @@ static void ot_sm_ready_action(OT_SM_EVENT_T event) {
  * @notes
  *============================================================================*/
 static void ot_sm_ready_exit(void) {
+#if defined(WAKEUP_BUTTON)
+  // cancel/stop state timer
+  OT_TIMER_stop();
+  ot_sm_data.timeout_ms = 0;
+#endif // WAKEUP_BUTTON
   GREEN_LED_OFF(); // Turn OFF GREEN LED to show we've exited READY
   return;
 }
@@ -353,6 +386,61 @@ static void ot_sm_confirmed_exit(void) {
 #endif // DEBUG
   return;
 }
+
+/*==============================================================================
+ * DESCRIPTION:
+ * @param
+ * @return
+ * @precondition
+ * @postcondition
+ * @caution
+ * @notes
+ *============================================================================*/
+#if defined(WAKEUP_BUTTON)
+static void ot_sm_sleeping_entry(void) {
+  // Enable the Button Interrupt
+  BUTTON_ENABLE();
+  return;
+}
+#endif // WAKEUP_BUTTON
+
+/*==============================================================================
+ * DESCRIPTION:
+ * @param
+ * @return
+ * @precondition
+ * @postcondition
+ * @caution
+ * @notes
+ *============================================================================*/
+#if defined(WAKEUP_BUTTON)
+static void ot_sm_sleeping_action(OT_SM_EVENT_T event) {
+  if (OT_SM_EVENT_BUTTON_PRESS == event) {
+    // User pressed button to wake us up
+    ot_sm_set_state(OT_SM_STATE_READY);
+    // @todo - ideally should go to ARMING but that's not used in our
+    //         current design
+  }
+  return;
+}
+#endif // WAKEUP_BUTTON
+
+/*==============================================================================
+ * DESCRIPTION:
+ * @param
+ * @return
+ * @precondition
+ * @postcondition
+ * @caution
+ * @notes
+ *============================================================================*/
+#if defined(WAKEUP_BUTTON)
+static void ot_sm_sleeping_exit(void) {
+  // Disable the Button Interrupt
+  BUTTON_DISABLE();
+  return;
+}
+#endif // WAKEUP_BUTTON
 /*==============================================================================
  * EXPORTED (GLOBAL) FUNCTIONS
  *============================================================================*/

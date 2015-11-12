@@ -27,6 +27,9 @@ typedef enum OT_SM_STATE_E {
   OT_SM_STATE_READY,
   OT_SM_STATE_PROVISIONAL,
   OT_SM_STATE_CONFIRMED,
+#if defined(WAKEUP_BUTTON)
+  OT_SM_STATE_SLEEPING,
+#endif // WAKEUP_BUTTON
   OT_SM_STATE_MAX           // Not a real state
 } OT_SM_STATE_T;
 
@@ -34,6 +37,9 @@ typedef enum OT_SM_EVENT_E {
   OT_SM_EVENT_INIT_COMPLETE,
   OT_SM_EVENT_FLASH_DETECTED,
   OT_SM_EVENT_TIMEOUT,
+#if defined(WAKEUP_BUTTON)
+  OT_SM_EVENT_BUTTON_PRESS,
+#endif // WAKEUP_BUTTON
   OT_SM_EVENT_MAX              // Not a real event
 } OT_SM_EVENT_T;
 /*==============================================================================

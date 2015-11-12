@@ -159,7 +159,7 @@ void OT_TIMER_busywait_ms(uint16_t delay_ms) {
  * @caution
  * @notes
  *============================================================================*/
-void tim4_isr_ovf(void) __interrupt(ITC_IRQ_TIM4_OVF) {
+INTERRUPT_HANDLER(tim4_isr_ovf, ITC_IRQ_TIM4_OVF) {
   if (TIM4_GetITStatus(TIM4_IT_UPDATE)) {
     if ((void*)0 != ot_timer_cb) {
       (*ot_timer_cb)(ot_timer_cbarg);

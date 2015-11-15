@@ -11,13 +11,13 @@
 /*==============================================================================
  * CONSTANTS
  *============================================================================*/
-#define OT_SM_INIT_TIMEOUT_MS           1000 // #if defined(TIMER_DEBUG)
+#define OT_SM_INIT_TIMEOUT_MS           100
 #define OT_SM_READY_TIMEOUT_MS          60000 // #if defined(WAKEUP_BUTTON)
 #define OT_SM_PROVISIONAL_TIMEOUT_MS    100
 #define OT_SM_CONFIRMED_TIMEOUT_MS      100
 #define OT_SM_NUM_BURSTS_TO_IGNORE      1 // @todo - use external DIP switch
 // @todo - What's the minimum duration for flash triggers?
-#define OT_SM_TRIGGER_DURATION_uSEC     300
+#define OT_SM_TRIGGER_DURATION_uS       300
 
 /* NOTE: On Canon, we need >75msec to be sure we've completely detected
    pre-flashes. Hence a PROVISIONAL_TIMEOUT of 100msec is perfect regardless of
@@ -159,10 +159,9 @@ static void ot_sm_set_state(OT_SM_STATE_T state_in) {
  * @notes
  *============================================================================*/
 static void ot_sm_init_entry(void) {
-#if defined(TIMER_DEBUG)
+  GREEN_LED_ON(); // Turn ON GREEN LED to show we're starting
   ot_sm_data.timeout_ms = OT_SM_INIT_TIMEOUT_MS;
   OT_TIMER_start(); // sends TIMEOUT events every ~1msec
-#endif // TIMER_DEBUG
   return;
 }
 /*==============================================================================
@@ -175,18 +174,11 @@ static void ot_sm_init_entry(void) {
  * @notes
  *============================================================================*/
 static void ot_sm_init_action(OT_SM_EVENT_T event) {
-#if defined(TIMER_DEBUG)
   if (OT_SM_EVENT_TIMEOUT == event) {
     if (0 == --ot_sm_data.timeout_ms) {
       ot_sm_set_state(OT_SM_STATE_READY);
     }
   }
-#else
-  // Wait for the main module to send us an INIT_COMPLETE
-  if (OT_SM_EVENT_INIT_COMPLETE == event) {
-    ot_sm_set_state(OT_SM_STATE_READY);
-  }
-#endif // TIMER_DEBUG
   // Ignore all other events and stay in the same state
   return;
 }
@@ -200,11 +192,10 @@ static void ot_sm_init_action(OT_SM_EVENT_T event) {
  * @notes
  *============================================================================*/
 static void ot_sm_init_exit(void) {
-#if defined(TIMER_DEBUG)
   // cancel/stop state timer
   OT_TIMER_stop();
   ot_sm_data.timeout_ms = 0;
-#endif // TIMER_DEBUG
+  GREEN_LED_OFF(); // Turn off GREEN LED to indicate we're moving to READY
   return;
 }
 /*==============================================================================
@@ -217,12 +208,14 @@ static void ot_sm_init_exit(void) {
  * @notes
  *============================================================================*/
 static void ot_sm_ready_entry(void) {
-  GREEN_LED_ON(); // Turn ON GREEN LED to show we're in READY
   ot_sm_data.burst_count = 0; // Reset our internal counters
 #if defined(WAKEUP_BUTTON)
-  // Set a timer to enter sleep if there is no user activity
+  // Set a timer to enter sleep if there is no flash/user activity
   ot_sm_data.timeout_ms = OT_SM_READY_TIMEOUT_MS;
   OT_TIMER_start(); // sends TIMEOUT events every ~1msec  return;
+
+  // Enable the Button Interrupt (in case user checks to see if we are awake)
+  BUTTON_ENABLE();
 #endif // WAKEUP_BUTTON
 }
 /*==============================================================================
@@ -249,11 +242,14 @@ static void ot_sm_ready_action(OT_SM_EVENT_T event) {
   }
 #if defined(WAKEUP_BUTTON)
   else if (OT_SM_EVENT_TIMEOUT == event) {
-    // decrement out timeout_ms count
     if (0 == --ot_sm_data.timeout_ms) { // Waiting period has expired
-      // We waited long enough for user action
+      // We waited long enough for flash/user action
       ot_sm_set_state(OT_SM_STATE_SLEEPING);
     }
+  }
+  else if (OT_SM_EVENT_BUTTON_PRESS == event) {
+    // User checking if we are awake. Go to INIT to show the GREEN LED.
+    ot_sm_set_state(OT_SM_STATE_INIT);
   }
 #endif // WAKEUP_BUTTON
   // Ignore all other events and stay in the same state
@@ -270,11 +266,12 @@ static void ot_sm_ready_action(OT_SM_EVENT_T event) {
  *============================================================================*/
 static void ot_sm_ready_exit(void) {
 #if defined(WAKEUP_BUTTON)
+  BUTTON_DISABLE();
+
   // cancel/stop state timer
   OT_TIMER_stop();
   ot_sm_data.timeout_ms = 0;
 #endif // WAKEUP_BUTTON
-  GREEN_LED_OFF(); // Turn OFF GREEN LED to show we've exited READY
   return;
 }
 /*==============================================================================
@@ -323,16 +320,13 @@ static void ot_sm_provisional_action(OT_SM_EVENT_T event) {
 #endif // IGNORE_PREFLASH
   }
   else if (OT_SM_EVENT_TIMEOUT == event) {
-    // decrement out timeout_ms count
     if (0 == --ot_sm_data.timeout_ms) { // Waiting period has expired
       // We waited long enough after the last burst.
       // No more 'red eye' or 'preflashes' are incoming.
 #if defined(IGNORE_PREFLASH)
       // If we timed out waiting for pre-flashes something went wrong
-      // go back to READY
-      ot_sm_set_state(OT_SM_STATE_READY);
-      // @todo - ideally should go to ARMING but that's not used in our
-      //         current design
+      // go back to INIT
+      ot_sm_set_state(OT_SM_STATE_INIT);
 #else
       ot_sm_set_state(OT_SM_STATE_CONFIRMED);
 #endif // IGNORE_PREFLASH
@@ -377,7 +371,7 @@ static void ot_sm_confirmed_entry(void) {
 #endif // DEBUG
 
   TRIGGER_OUT_ON(); // Trigger the slave flash
-  OT_TIMER_busywait_us(OT_SM_TRIGGER_DURATION_uSEC);
+  OT_TIMER_busywait_us(OT_SM_TRIGGER_DURATION_uS);
   TRIGGER_OUT_OFF(); // Release the trigger
 
   RED_LED_ON(); // Signal that we triggered
@@ -398,10 +392,7 @@ static void ot_sm_confirmed_entry(void) {
 static void ot_sm_confirmed_action(OT_SM_EVENT_T event) {
   if (OT_SM_EVENT_TIMEOUT == event) {
     if (0 == --ot_sm_data.timeout_ms) { // Waiting period has expired
-      // We waited long enough for the slave flash to have fired.
-      ot_sm_set_state(OT_SM_STATE_READY);
-      // @todo - ideally should go to ARMING but that's not used in our
-      //         current design
+      ot_sm_set_state(OT_SM_STATE_INIT);
     }
   }
   // Ignore all other events and stay in the same state
@@ -451,9 +442,7 @@ static void ot_sm_sleeping_entry(void) {
 static void ot_sm_sleeping_action(OT_SM_EVENT_T event) {
   if (OT_SM_EVENT_BUTTON_PRESS == event) {
     // User pressed button to wake us up
-    ot_sm_set_state(OT_SM_STATE_READY);
-    // @todo - ideally should go to ARMING but that's not used in our
-    //         current design
+    ot_sm_set_state(OT_SM_STATE_INIT);
   }
   return;
 }

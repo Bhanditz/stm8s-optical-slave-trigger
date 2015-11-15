@@ -20,7 +20,6 @@ extern "C"
 #define DEBUG          // General debug
 #define WAKEUP_BUTTON  // Support SLEEPING state and wake-up using BUTTON_DET
 #define IGNORE_PREFLASH  // Ignore pre-flashes in READY state
-//#define TIMER_DEBUG    // Use timer to delay entry into READY state by 1 sec
 
 // SENSOR_ENABLE Output Pushpull Low impedance Slow
 #define SENSOR_ENABLE_PORT    GPIOA

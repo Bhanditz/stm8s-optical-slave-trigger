@@ -92,14 +92,6 @@ void main(void) {
   OT_GPIO_init(ot_gpio_cb, (void*)0);
   OT_TIMER_init(ot_timer_cb, (void*)0);
   OT_SM_init();
-#if defined(TIMER_DEBUG)
-  // State machine will automatically enter READY state after expiry of
-  // debug timer
-#else
-  // Send a 'init done' message to the state machine so it's ready to handle
-  // Flash bursts
-  OT_SM_execute(OT_SM_EVENT_INIT_COMPLETE);
-#endif // TIMER_DEBUG
   enableInterrupts();
   while (1) {
 #if defined(WAKEUP_BUTTON)

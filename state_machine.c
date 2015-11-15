@@ -13,8 +13,13 @@
  *============================================================================*/
 #define OT_SM_INIT_TIMEOUT_MS           1000 // #if defined(TIMER_DEBUG)
 #define OT_SM_READY_TIMEOUT_MS          60000 // #if defined(WAKEUP_BUTTON)
-#define OT_SM_PROVISIONAL_TIMEOUT_MS    5 // = Canon 1/200 sync-speed
+#define OT_SM_PROVISIONAL_TIMEOUT_MS    100
 #define OT_SM_CONFIRMED_TIMEOUT_MS      10 // @todo - What's the minimum duration for flash triggers?
+#define OT_SM_NUM_BURSTS_TO_IGNORE      1 // @todo - use external DIP switch
+
+/* NOTE: On Canon, we need >75msec to be sure we've completely detected
+   pre-flashes. Hence a PROVISIONAL_TIMEOUT of 100msec is perfect when
+   the feature IGNORE_PREFLASH is not defined */
 /*==============================================================================
  * MACROS
  *============================================================================*/
@@ -229,7 +234,16 @@ static void ot_sm_ready_entry(void) {
  *============================================================================*/
 static void ot_sm_ready_action(OT_SM_EVENT_T event) {
   if (OT_SM_EVENT_FLASH_DETECTED == event) {
-    ot_sm_set_state(OT_SM_STATE_PROVISIONAL);
+    ++ot_sm_data.burst_count;
+#if defined(IGNORE_PREFLASH)
+    // If we've exceeded the number of bursts to ignore we are done here
+    // @todo - get NUM_BURSTS_TO_IGNORE from external DIP switch
+    if (ot_sm_data.burst_count > OT_SM_NUM_BURSTS_TO_IGNORE) {
+      ot_sm_set_state(OT_SM_STATE_CONFIRMED);
+    }
+    else
+#endif // IGNORE_PREFLASH
+      { ot_sm_set_state(OT_SM_STATE_PROVISIONAL); }
   }
 #if defined(WAKEUP_BUTTON)
   else if (OT_SM_EVENT_TIMEOUT == event) {
@@ -272,7 +286,6 @@ static void ot_sm_ready_exit(void) {
  *============================================================================*/
 static void ot_sm_provisional_entry(void) {
   // If we entered this state we just detected ONE flash burst
-  ot_sm_data.burst_count = 1;
   ot_sm_data.timeout_ms = OT_SM_PROVISIONAL_TIMEOUT_MS;
   OT_TIMER_start(); // sends TIMEOUT events every ~1msec
   return;
@@ -291,17 +304,36 @@ static void ot_sm_provisional_action(OT_SM_EVENT_T event) {
     // Possibly part of the 'red eye' reduction or 'pre-flashes'
     // Increment our count of flash bursts detected
     ++ot_sm_data.burst_count;
-    // reset our state timer
-    ot_sm_data.timeout_ms = OT_SM_PROVISIONAL_TIMEOUT_MS;
-    OT_TIMER_start(); // sends TIMEOUT events every ~1msec
-    // stay in this state
+#if defined(IGNORE_PREFLASH)
+    // If we've exceeded the number of bursts to ignore we are done here
+    // @todo - get NUM_BURSTS_TO_IGNORE from external DIP switch
+    if (ot_sm_data.burst_count > OT_SM_NUM_BURSTS_TO_IGNORE) {
+      ot_sm_set_state(OT_SM_STATE_CONFIRMED);
+    }
+    else {
+#endif // IGNORE_PREFLASH
+      // reset our state timer
+      ot_sm_data.timeout_ms = OT_SM_PROVISIONAL_TIMEOUT_MS;
+      OT_TIMER_start(); // sends TIMEOUT events every ~1msec
+      // stay in this state
+#if defined(IGNORE_PREFLASH)
+    }
+#endif // IGNORE_PREFLASH
   }
   else if (OT_SM_EVENT_TIMEOUT == event) {
     // decrement out timeout_ms count
     if (0 == --ot_sm_data.timeout_ms) { // Waiting period has expired
       // We waited long enough after the last burst.
       // No more 'red eye' or 'preflashes' are incoming.
+#if defined(IGNORE_PREFLASH)
+      // If we timed out waiting for pre-flashes something went wrong
+      // go back to READY
+      ot_sm_set_state(OT_SM_STATE_READY);
+      // @todo - ideally should go to ARMING but that's not used in our
+      //         current design
+#else
       ot_sm_set_state(OT_SM_STATE_CONFIRMED);
+#endif // IGNORE_PREFLASH
     }
   }
   // Ignore all other events and stay in the same state
@@ -386,7 +418,6 @@ static void ot_sm_confirmed_exit(void) {
 #endif // DEBUG
   return;
 }
-
 /*==============================================================================
  * DESCRIPTION:
  * @param
@@ -403,7 +434,6 @@ static void ot_sm_sleeping_entry(void) {
   return;
 }
 #endif // WAKEUP_BUTTON
-
 /*==============================================================================
  * DESCRIPTION:
  * @param
@@ -424,7 +454,6 @@ static void ot_sm_sleeping_action(OT_SM_EVENT_T event) {
   return;
 }
 #endif // WAKEUP_BUTTON
-
 /*==============================================================================
  * DESCRIPTION:
  * @param
@@ -486,5 +515,4 @@ void OT_SM_execute(OT_SM_EVENT_T event) {
 OT_SM_STATE_T OT_SM_get_state(void) {
   return ot_sm_data.state;
 }
-
 /*============================================================================*/

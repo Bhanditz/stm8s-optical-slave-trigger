@@ -14,12 +14,14 @@
 #define OT_SM_INIT_TIMEOUT_MS           1000 // #if defined(TIMER_DEBUG)
 #define OT_SM_READY_TIMEOUT_MS          60000 // #if defined(WAKEUP_BUTTON)
 #define OT_SM_PROVISIONAL_TIMEOUT_MS    100
-#define OT_SM_CONFIRMED_TIMEOUT_MS      10 // @todo - What's the minimum duration for flash triggers?
+#define OT_SM_CONFIRMED_TIMEOUT_MS      100
 #define OT_SM_NUM_BURSTS_TO_IGNORE      1 // @todo - use external DIP switch
+// @todo - What's the minimum duration for flash triggers?
+#define OT_SM_TRIGGER_DURATION_uSEC     300
 
 /* NOTE: On Canon, we need >75msec to be sure we've completely detected
-   pre-flashes. Hence a PROVISIONAL_TIMEOUT of 100msec is perfect when
-   the feature IGNORE_PREFLASH is not defined */
+   pre-flashes. Hence a PROVISIONAL_TIMEOUT of 100msec is perfect regardless of
+   whether the feature IGNORE_PREFLASH is defined or not. */
 /*==============================================================================
  * MACROS
  *============================================================================*/
@@ -372,10 +374,14 @@ static void ot_sm_confirmed_entry(void) {
     RED_LED_ON(); OT_TIMER_busywait_ms(OT_SM_BUSYWAIT_DELAY_MS);
     RED_LED_OFF(); OT_TIMER_busywait_ms(OT_SM_BUSYWAIT_DELAY_MS);
   }
-#else
-  TRIGGER_OUT_ON(); // Trigger the slave flash
 #endif // DEBUG
-  // set a 10msec timer
+
+  TRIGGER_OUT_ON(); // Trigger the slave flash
+  OT_TIMER_busywait_us(OT_SM_TRIGGER_DURATION_uSEC);
+  TRIGGER_OUT_OFF(); // Release the trigger
+
+  RED_LED_ON(); // Signal that we triggered
+  // set a state timer to turn off the RED LED
   ot_sm_data.timeout_ms = OT_SM_CONFIRMED_TIMEOUT_MS;
   OT_TIMER_start();
   return;
@@ -413,9 +419,7 @@ static void ot_sm_confirmed_action(OT_SM_EVENT_T event) {
 static void ot_sm_confirmed_exit(void) {
   OT_TIMER_stop();
   ot_sm_data.timeout_ms = 0;
-#if !defined(DEBUG)
-  TRIGGER_OUT_OFF(); // Release the slave flash trigger
-#endif // DEBUG
+  RED_LED_OFF();
   return;
 }
 /*==============================================================================

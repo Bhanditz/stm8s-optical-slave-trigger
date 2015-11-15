@@ -19,7 +19,7 @@ extern "C"
 // Feature Defines
 #define DEBUG          // General debug
 #define WAKEUP_BUTTON  // Support SLEEPING state and wake-up using BUTTON_DET
-#define IGNORE_PREFLASH  // Ignore pre-flashes in READY state
+#define IGNORE_PREFLASH  // Ignore pre-flashes once READY
 
 // SENSOR_ENABLE Output Pushpull Low impedance Slow
 #define SENSOR_ENABLE_PORT    GPIOA
@@ -53,6 +53,20 @@ extern "C"
   #define BUTTON_DET_EXTI_PORT           EXTI_PORT_GPIOC
   #define BUTTON_DET_EXTI_SENSITIVITY    EXTI_SENSITIVITY_FALL_ONLY
 #endif // WAKEUP_BUTTON
+
+#if defined(IGNORE_PREFLASH)
+  #define DIP0_PORT    GPIOD
+  #define DIP0_PIN     GPIO_PIN_2
+  #define DIP0_MODE    GPIO_MODE_IN_PU_NO_IT
+
+  #define DIP1_PORT    GPIOD
+  #define DIP1_PIN     GPIO_PIN_4
+  #define DIP1_MODE    GPIO_MODE_IN_PU_NO_IT
+
+  #define DIP2_PORT    GPIOD
+  #define DIP2_PIN     GPIO_PIN_6
+  #define DIP2_MODE    GPIO_MODE_IN_PU_NO_IT
+#endif // IGNORE_PREFLASH
 /*==============================================================================
  * MACROS
  *============================================================================*/
@@ -79,7 +93,6 @@ extern "C"
   #define BUTTON_ENABLE()     \
     GPIO_Init(BUTTON_DET_PORT, BUTTON_DET_PIN, BUTTON_DET_ENABLE_MODE); \
     EXTI_SetExtIntSensitivity(BUTTON_DET_EXTI_PORT, BUTTON_DET_EXTI_SENSITIVITY);
-    // BUTTON_DET Sensitivity for Falling Edge
 
   #define BUTTON_DISABLE()    \
     GPIO_Init(BUTTON_DET_PORT, BUTTON_DET_PIN, BUTTON_DET_DISABLE_MODE);

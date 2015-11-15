@@ -30,6 +30,9 @@ typedef void (OT_GPIO_CB_T)(GPIO_TypeDef *port, void *cbarg);
  * EXPORTED (GLOBAL) FUNCTIONS
  *============================================================================*/
 void OT_GPIO_init(OT_GPIO_CB_T *cb, void *cbarg);
+#if defined(IGNORE_PREFLASH)
+  uint8_t OT_GPIO_bursts_to_ignore(void);
+#endif // IGNORE_PREFLASH
 #if defined(_SDCC_)
   // The SDCC compiler requires the main module to know interrupt prototypes
   INTERRUPT_HANDLER(ot_gpiob_isr, ITC_IRQ_PORTB);

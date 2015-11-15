@@ -7,6 +7,7 @@
  *============================================================================*/
 #include "config.h"
 #include "timer.h"
+#include "gpio.h"
 #include "state_machine.h"
 /*==============================================================================
  * CONSTANTS
@@ -15,7 +16,7 @@
 #define OT_SM_READY_TIMEOUT_MS          60000 // #if defined(WAKEUP_BUTTON)
 #define OT_SM_PROVISIONAL_TIMEOUT_MS    100
 #define OT_SM_CONFIRMED_TIMEOUT_MS      100
-#define OT_SM_NUM_BURSTS_TO_IGNORE      1 // @todo - use external DIP switch
+#define OT_SM_DEFAULT_BURSTS_TO_IGNORE  1
 // @todo - What's the minimum duration for flash triggers?
 #define OT_SM_TRIGGER_DURATION_uS       300
 
@@ -41,6 +42,7 @@ typedef struct OT_SM_HANDLERS_S {
 
 typedef struct OT_SM_DATA_S {
   OT_SM_STATE_T volatile state;
+  uint8_t                bursts_to_ignore;
   uint8_t       volatile burst_count;
   uint16_t      volatile timeout_ms; // Upto 65.536 sec
 } OT_SM_DATA_T;
@@ -109,9 +111,10 @@ static OT_SM_HANDLERS_T ot_sm_handlers[OT_SM_STATE_MAX] = {
 };
 
 static OT_SM_DATA_T ot_sm_data = {
-  .state       = OT_SM_STATE_MAX,    // Invalid deliberately
-  .burst_count = 0,
-  .timeout_ms  = 0
+  .state            = OT_SM_STATE_MAX, // Invalid deliberately
+  .bursts_to_ignore = OT_SM_DEFAULT_BURSTS_TO_IGNORE,
+  .burst_count      = 0,
+  .timeout_ms       = 0
 };
 /*==============================================================================
  * GLOBAL (extern) VARIABLES
@@ -159,6 +162,9 @@ static void ot_sm_set_state(OT_SM_STATE_T state_in) {
  * @notes
  *============================================================================*/
 static void ot_sm_init_entry(void) {
+#if defined(IGNORE_PREFLASH)
+  ot_sm_data.bursts_to_ignore = OT_GPIO_bursts_to_ignore();
+#endif // IGNORE_PREFLASH
   GREEN_LED_ON(); // Turn ON GREEN LED to show we're starting
   ot_sm_data.timeout_ms = OT_SM_INIT_TIMEOUT_MS;
   OT_TIMER_start(); // sends TIMEOUT events every ~1msec
@@ -232,8 +238,7 @@ static void ot_sm_ready_action(OT_SM_EVENT_T event) {
     ++ot_sm_data.burst_count;
 #if defined(IGNORE_PREFLASH)
     // If we've exceeded the number of bursts to ignore we are done here
-    // @todo - get NUM_BURSTS_TO_IGNORE from external DIP switch
-    if (ot_sm_data.burst_count > OT_SM_NUM_BURSTS_TO_IGNORE) {
+    if (ot_sm_data.burst_count > ot_sm_data.bursts_to_ignore) {
       ot_sm_set_state(OT_SM_STATE_CONFIRMED);
     }
     else
@@ -305,8 +310,7 @@ static void ot_sm_provisional_action(OT_SM_EVENT_T event) {
     ++ot_sm_data.burst_count;
 #if defined(IGNORE_PREFLASH)
     // If we've exceeded the number of bursts to ignore we are done here
-    // @todo - get NUM_BURSTS_TO_IGNORE from external DIP switch
-    if (ot_sm_data.burst_count > OT_SM_NUM_BURSTS_TO_IGNORE) {
+    if (ot_sm_data.burst_count > ot_sm_data.bursts_to_ignore) {
       ot_sm_set_state(OT_SM_STATE_CONFIRMED);
     }
     else {
@@ -360,16 +364,6 @@ static void ot_sm_provisional_exit(void) {
  * @notes
  *============================================================================*/
 static void ot_sm_confirmed_entry(void) {
-#if defined(DEBUG)
-  // Flash RED LED for burst_count times
-  uint8_t i;
-  for (i=0; i < ot_sm_data.burst_count; ++i) {
-#define OT_SM_BUSYWAIT_DELAY_MS  500
-    RED_LED_ON(); OT_TIMER_busywait_ms(OT_SM_BUSYWAIT_DELAY_MS);
-    RED_LED_OFF(); OT_TIMER_busywait_ms(OT_SM_BUSYWAIT_DELAY_MS);
-  }
-#endif // DEBUG
-
   TRIGGER_OUT_ON(); // Trigger the slave flash
   OT_TIMER_busywait_us(OT_SM_TRIGGER_DURATION_uS);
   TRIGGER_OUT_OFF(); // Release the trigger

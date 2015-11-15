@@ -29,7 +29,8 @@ extern "C"
 #define TRIGGER_IN_PORT       GPIOB
 #define TRIGGER_IN_PIN        GPIO_PIN_7
 #define TRIGGER_IN_MODE       GPIO_MODE_IN_FL_IT
-#define TRIGGER_IN_EXTI_PORT  EXTI_PORT_GPIOB
+#define TRIGGER_IN_EXTI_PORT           EXTI_PORT_GPIOB
+#define TRIGGER_IN_EXTI_SENSITIVITY    EXTI_SENSITIVITY_RISE_ONLY
 
 // TRIGGER_OUT Output Pushpull Low impedance Slow
 #define TRIGGER_OUT_PORT      GPIOA
@@ -46,9 +47,11 @@ extern "C"
 #if defined(WAKEUP_BUTTON)
   // BUTTON_DET Input Pullup Interrupt enabled
   #define BUTTON_DET_PORT       GPIOC
-  #define BUTTON_DET_PIN        GPIO_PIN_7
-  #define BUTTON_DET_MODE       GPIO_MODE_IN_PU_IT
-  #define BUTTON_DET_EXTI_PORT  EXTI_PORT_GPIOC
+  #define BUTTON_DET_PIN        GPIO_PIN_4
+  #define BUTTON_DET_ENABLE_MODE    GPIO_MODE_IN_PU_IT
+  #define BUTTON_DET_DISABLE_MODE   GPIO_MODE_IN_FL_NO_IT
+  #define BUTTON_DET_EXTI_PORT           EXTI_PORT_GPIOC
+  #define BUTTON_DET_EXTI_SENSITIVITY    EXTI_SENSITIVITY_FALL_ONLY
 #endif // WAKEUP_BUTTON
 /*==============================================================================
  * MACROS
@@ -74,10 +77,12 @@ extern "C"
 
 #if defined(WAKEUP_BUTTON)
   #define BUTTON_ENABLE()     \
-    GPIO_Init(BUTTON_DET_PORT, BUTTON_DET_PIN, BUTTON_DET_MODE);
+    GPIO_Init(BUTTON_DET_PORT, BUTTON_DET_PIN, BUTTON_DET_ENABLE_MODE); \
+    EXTI_SetExtIntSensitivity(BUTTON_DET_EXTI_PORT, BUTTON_DET_EXTI_SENSITIVITY);
+    // BUTTON_DET Sensitivity for Falling Edge
 
   #define BUTTON_DISABLE()    \
-    GPIO_Init(BUTTON_DET_PORT, BUTTON_DET_PIN, GPIO_MODE_IN_FL_NO_IT);
+    GPIO_Init(BUTTON_DET_PORT, BUTTON_DET_PIN, BUTTON_DET_DISABLE_MODE);
 #endif // WAKEUP_BUTTON
 /*==============================================================================
  * TYPEDEFs and STRUCTs

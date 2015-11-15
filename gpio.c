@@ -51,7 +51,7 @@ void OT_GPIO_init(OT_GPIO_CB_T *cb, void *cbarg) {
 
   GPIO_Init(TRIGGER_IN_PORT, TRIGGER_IN_PIN, TRIGGER_IN_MODE);
   // TRIGGER_IN Sensitivity for Rising Edge
-  EXTI_SetExtIntSensitivity(TRIGGER_IN_EXTI_PORT, EXTI_SENSITIVITY_RISE_ONLY);
+  EXTI_SetExtIntSensitivity(TRIGGER_IN_EXTI_PORT, TRIGGER_IN_EXTI_SENSITIVITY);
 
   TRIGGER_OUT_OFF(); // Do this first to prevent accidental turn ON
   GPIO_Init(TRIGGER_OUT_PORT, TRIGGER_OUT_PIN, GPIO_MODE_OUT_PP_LOW_SLOW);
@@ -63,9 +63,7 @@ void OT_GPIO_init(OT_GPIO_CB_T *cb, void *cbarg) {
   RED_LED_OFF();
 
 #if defined(WAKEUP_BUTTON)
-  BUTTON_ENABLE();
-  // BUTTON_DET Sensitivity for Falling Edge
-  EXTI_SetExtIntSensitivity(BUTTON_DET_EXTI_PORT, EXTI_SENSITIVITY_FALL_ONLY);
+  BUTTON_DISABLE();
 #endif // WAKEUP_BUTTON
   return;
 }
@@ -80,7 +78,7 @@ void OT_GPIO_init(OT_GPIO_CB_T *cb, void *cbarg) {
  * @notes
  *============================================================================*/
 INTERRUPT_HANDLER(ot_gpiob_isr, ITC_IRQ_PORTB) {
-  // This ISR detects a flash burst. Inform the state machine.
+  // Inform the 'owner' module of this interrupt
   if ((void*)0 != ot_gpio_cb) (*ot_gpio_cb)(GPIOB, ot_gpio_cbarg);
   return;
 }
@@ -96,7 +94,7 @@ INTERRUPT_HANDLER(ot_gpiob_isr, ITC_IRQ_PORTB) {
  *============================================================================*/
 #if defined(WAKEUP_BUTTON)
 INTERRUPT_HANDLER(ot_gpioc_isr, ITC_IRQ_PORTC) {
-  // This ISR detects a button press. Inform the state machine.
+  // Inform the 'owner' module of this interrupt
   if ((void*)0 != ot_gpio_cb) (*ot_gpio_cb)(GPIOC, ot_gpio_cbarg);
   return;
 }

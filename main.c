@@ -59,6 +59,7 @@ static void ot_timer_cb(void *cbarg) {
  * @notes
  *============================================================================*/
 // Called by the GPIO module's interrupt upon detection of a flash burst
+// or wake-up button press
 static void ot_gpio_cb(GPIO_TypeDef *port, void *cbarg) {
   (void)cbarg; // Unused
   if (TRIGGER_IN_PORT == port) {
@@ -100,5 +101,13 @@ void main(void) {
   OT_SM_execute(OT_SM_EVENT_INIT_COMPLETE);
 #endif // TIMER_DEBUG
   enableInterrupts();
-  while (1) { wfi(); }
+  while (1) {
+#if defined(WAKEUP_BUTTON)
+    // Deep sleep (halt) when we want to wake up only due to an external
+    // interrupt
+    if (OT_SM_STATE_SLEEPING == OT_SM_get_state()) { halt(); }
+    else
+#endif // WAKEUP_BUTTON
+    { wfi(); }
+  }
 }

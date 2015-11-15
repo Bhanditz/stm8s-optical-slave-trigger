@@ -13,8 +13,8 @@
  *============================================================================*/
 #define OT_SM_INIT_TIMEOUT_MS           1000 // #if defined(TIMER_DEBUG)
 #define OT_SM_READY_TIMEOUT_MS          60000 // #if defined(WAKEUP_BUTTON)
-#define OT_SM_PROVISIONAL_TIMEOUT_MS    100
-#define OT_SM_CONFIRMED_TIMEOUT_MS      10
+#define OT_SM_PROVISIONAL_TIMEOUT_MS    5 // = Canon 1/200 sync-speed
+#define OT_SM_CONFIRMED_TIMEOUT_MS      10 // @todo - What's the minimum duration for flash triggers?
 /*==============================================================================
  * MACROS
  *============================================================================*/
@@ -474,4 +474,17 @@ void OT_SM_execute(OT_SM_EVENT_T event) {
   }
   return;
 }
+/*==============================================================================
+ * DESCRIPTION:
+ * @param
+ * @return
+ * @precondition
+ * @postcondition
+ * @caution
+ * @notes
+ *============================================================================*/
+OT_SM_STATE_T OT_SM_get_state(void) {
+  return ot_sm_data.state;
+}
+
 /*============================================================================*/

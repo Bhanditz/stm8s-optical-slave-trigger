@@ -50,6 +50,7 @@ typedef enum OT_SM_EVENT_E {
  *============================================================================*/
 void OT_SM_init(void);
 void OT_SM_execute(OT_SM_EVENT_T event);
+OT_SM_STATE_T OT_SM_get_state(void);
 /*============================================================================*/
 #ifdef __cplusplus
 }

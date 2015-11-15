@@ -37,10 +37,10 @@
 | PC1   | TS_SENSE      |        |        |
 | PC2   |               |        |        |
 | PC3   | TS_GND        |        |        |
-| PC4   |               |        |        |
+| PC4   | BUTTON_DET    | Pin 29 | CN2.5  |
 | PC5   |               |        |        |
 | PC6   |               |        |        |
-| PC7   | BUTTON_DET    | Pin 36 | CN2.12 |
+| PC7   |               |        |        |
 
 ### PortD
 | Portx | Signal        | Pin #  | CNx.y  |

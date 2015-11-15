@@ -1,12 +1,14 @@
-# STM8S-Discovery Pinout (Prototyping)
+# Pinout map
 
-## Power
+## STM8S-Discovery Pinout (Prototyping)
+
+### Power
 | Portx | Signal        | Pin #  | CNx.y  |
 |-------|---------------|--------|--------|
 | N/A   | VDD           | Pin 07 | CN1.7  |
 | N/A   | GND           | Pin 05 | CN1.5  |
 
-## PortA
+### PortA
 | Portx | Signal        | Pin #  | CNx.y  |
 |-------|---------------|--------|--------|
 | PA1   | OSCIN         |        |        |
@@ -16,7 +18,7 @@
 | PA5   | TRIGGER_OUT   | Pin 11 | CN1.11 |
 | PA6   |               |        |        |
 
-## PortB Input Sensitivity Rise-only
+### PortB Input Sensitivity Rise-only
 | Portx | Signal        | Pin #  | CNx.y  |
 |-------|---------------|--------|--------|
 | PB0   |               |        |        |
@@ -29,7 +31,7 @@
 | PB7   | TRIGGER_IN    | Pin 15 | CN3.3  |
 
 
-## PortC Input Sensitivity Fall-only
+### PortC Input Sensitivity Fall-only
 | Portx | Signal        | Pin #  | CNx.y  |
 |-------|---------------|--------|--------|
 | PC1   | TS_SENSE      |        |        |
@@ -40,7 +42,7 @@
 | PC6   |               |        |        |
 | PC7   | BUTTON_DET    | Pin 36 | CN2.12 |
 
-## PortD
+### PortD
 | Portx | Signal        | Pin #  | CNx.y  |
 |-------|---------------|--------|--------|
 | PD0   | GREEN_LED     | Pin 41 | CN4.5  |
@@ -52,7 +54,7 @@
 | PD6   |               |        |        |
 | PD7   |               |        |        |
 
-## PortE
+### PortE
 | Portx | Signal        | Pin #  | CNx.y  |
 |-------|---------------|--------|--------|
 | PE0   |               |        |        |
@@ -63,7 +65,7 @@
 | PE6   |               |        |        |
 | PE7   | RED_LED       | Pin 23 | CN3.11 |
 
-## PortG (No Interrupt Capability)
+### PortG (No Interrupt Capability)
 | Portx | Signal        | Pin #  | CNx.y  |
 |-------|---------------|--------|--------|
 | PG0   |               |        |        |

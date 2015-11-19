@@ -19,7 +19,6 @@ extern "C"
 // Feature Defines
 #define DEBUG          // General debug
 #define WAKEUP_BUTTON  // Support SLEEPING state and wake-up using BUTTON_DET
-#define IGNORE_PREFLASH  // Ignore pre-flashes once READY
 
 // SENSOR_ENABLE Output Pushpull Low impedance Slow
 #define SENSOR_ENABLE_PORT    GPIOA

@@ -43,10 +43,9 @@ typedef struct OT_SM_HANDLERS_S {
 
 typedef struct OT_SM_DATA_S {
   OT_SM_STATE_T volatile state;
-  uint8_t                bursts_to_ignore;
+  uint8_t       volatile bursts_to_ignore;
   uint8_t       volatile burst_count;
-  // trigger_timeout_ms is used when MAX_BURSTS_TO_IGNORE == bursts_to_ignore
-  uint8_t                trigger_timeout_ms;
+  uint8_t       volatile provisional_timeout_ms; // User set or default
   uint16_t      volatile state_timeout_ms; // Upto 65.536 sec
 } OT_SM_DATA_T;
 /*==============================================================================
@@ -114,11 +113,11 @@ static OT_SM_HANDLERS_T ot_sm_handlers[OT_SM_STATE_MAX] = {
 };
 
 static OT_SM_DATA_T ot_sm_data = {
-  .state              = OT_SM_STATE_MAX, // Invalid deliberately
-  .bursts_to_ignore   = OT_SM_DEFAULT_BURSTS_TO_IGNORE,
-  .burst_count        = 0,
-  .trigger_timeout_ms = OT_SM_PROVISIONAL_TIMEOUT_MS,
-  .state_timeout_ms   = 0
+  .state                  = OT_SM_STATE_MAX, // Invalid deliberately
+  .bursts_to_ignore       = OT_SM_DEFAULT_BURSTS_TO_IGNORE,
+  .burst_count            = 0,
+  .provisional_timeout_ms = OT_SM_PROVISIONAL_TIMEOUT_MS,
+  .state_timeout_ms       = 0
 };
 /*==============================================================================
  * GLOBAL (extern) VARIABLES
@@ -171,15 +170,15 @@ static void ot_sm_init_entry(void) {
   // Check if we should use the DELAY_SENSE analog value to determine the
   // timeout to trigger the flash.
   if (OT_SM_MAX_BURSTS_TO_IGNORE == ot_sm_data.bursts_to_ignore) {
-    ot_sm_data.trigger_timeout_ms = OT_ADC_read_delay_sense();
-    // Ensure that trigger_timeout_ms is non-zero (precondition for the
+    ot_sm_data.provisional_timeout_ms = OT_ADC_read_delay_sense();
+    // Ensure that provisional_timeout_ms is non-zero (precondition for the
     // implementation in the PROVISIONAL state)
-    if (0 == ot_sm_data.trigger_timeout_ms) {
-      ot_sm_data.trigger_timeout_ms = OT_SM_PROVISIONAL_TIMEOUT_MS;
+    if (0 == ot_sm_data.provisional_timeout_ms) {
+      ot_sm_data.provisional_timeout_ms = OT_SM_PROVISIONAL_TIMEOUT_MS;
     }
   }
-  else { // Use default value for the trigger_timeout
-    ot_sm_data.trigger_timeout_ms = OT_SM_PROVISIONAL_TIMEOUT_MS;
+  else { // Use default value
+    ot_sm_data.provisional_timeout_ms = OT_SM_PROVISIONAL_TIMEOUT_MS;
   }
 
   GREEN_LED_ON(); // Turn ON GREEN LED to show we're starting
@@ -308,8 +307,8 @@ static void ot_sm_ready_exit(void) {
  *============================================================================*/
 static void ot_sm_provisional_entry(void) {
   // If we entered this state we just detected ONE flash burst
-  // The trigger_timeout_ms has been assigned the right value in INIT state
-  ot_sm_data.state_timeout_ms = ot_sm_data.trigger_timeout_ms;
+  // The provisional_timeout_ms has been assigned the right value in INIT state
+  ot_sm_data.state_timeout_ms = ot_sm_data.provisional_timeout_ms;
   OT_TIMER_start(); // sends TIMEOUT events every ~1msec
   return;
 }
@@ -334,9 +333,9 @@ static void ot_sm_provisional_action(OT_SM_EVENT_T event) {
     }
     else {
       // Whether the user has configured a timeout or not, the correct value
-      // has ben assigned to trigger_timeout_ms in INIT state.
+      // has ben assigned to provisional_timeout_ms in INIT state.
       // reset our state timer
-      ot_sm_data.state_timeout_ms = ot_sm_data.trigger_timeout_ms;
+      ot_sm_data.state_timeout_ms = ot_sm_data.provisional_timeout_ms;
       OT_TIMER_start(); // sends TIMEOUT events every ~1msec
       // stay in this state
     }

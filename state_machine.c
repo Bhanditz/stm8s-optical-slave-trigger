@@ -6,8 +6,9 @@
  * INCLUDES
  *============================================================================*/
 #include "config.h"
-#include "timer.h"
 #include "gpio.h"
+#include "timer.h"
+#include "adc.h"
 #include "state_machine.h"
 /*==============================================================================
  * CONSTANTS
@@ -17,12 +18,12 @@
 #define OT_SM_PROVISIONAL_TIMEOUT_MS    100
 #define OT_SM_CONFIRMED_TIMEOUT_MS      100
 #define OT_SM_DEFAULT_BURSTS_TO_IGNORE  1
+#define OT_SM_MAX_BURSTS_TO_IGNORE      ((0x1 << MAX_DIP_SWITCHES) - 1)
 // @todo - What's the minimum duration for flash triggers?
 #define OT_SM_TRIGGER_DURATION_uS       300
 
 /* NOTE: On Canon, we need >75msec to be sure we've completely detected
-   pre-flashes. Hence a PROVISIONAL_TIMEOUT of 100msec is perfect regardless of
-   whether the feature IGNORE_PREFLASH is defined or not. */
+   pre-flashes. Hence a default PROVISIONAL_TIMEOUT of 100msec is perfect. */
 /*==============================================================================
  * MACROS
  *============================================================================*/
@@ -44,7 +45,9 @@ typedef struct OT_SM_DATA_S {
   OT_SM_STATE_T volatile state;
   uint8_t                bursts_to_ignore;
   uint8_t       volatile burst_count;
-  uint16_t      volatile timeout_ms; // Upto 65.536 sec
+  // trigger_timeout_ms is used when MAX_BURSTS_TO_IGNORE == bursts_to_ignore
+  uint8_t                trigger_timeout_ms;
+  uint16_t      volatile state_timeout_ms; // Upto 65.536 sec
 } OT_SM_DATA_T;
 /*==============================================================================
  * LOCAL FUNCTION PROTOTYPES
@@ -111,10 +114,11 @@ static OT_SM_HANDLERS_T ot_sm_handlers[OT_SM_STATE_MAX] = {
 };
 
 static OT_SM_DATA_T ot_sm_data = {
-  .state            = OT_SM_STATE_MAX, // Invalid deliberately
-  .bursts_to_ignore = OT_SM_DEFAULT_BURSTS_TO_IGNORE,
-  .burst_count      = 0,
-  .timeout_ms       = 0
+  .state              = OT_SM_STATE_MAX, // Invalid deliberately
+  .bursts_to_ignore   = OT_SM_DEFAULT_BURSTS_TO_IGNORE,
+  .burst_count        = 0,
+  .trigger_timeout_ms = OT_SM_PROVISIONAL_TIMEOUT_MS,
+  .state_timeout_ms   = 0
 };
 /*==============================================================================
  * GLOBAL (extern) VARIABLES
@@ -162,11 +166,24 @@ static void ot_sm_set_state(OT_SM_STATE_T state_in) {
  * @notes
  *============================================================================*/
 static void ot_sm_init_entry(void) {
-#if defined(IGNORE_PREFLASH)
   ot_sm_data.bursts_to_ignore = OT_GPIO_bursts_to_ignore();
-#endif // IGNORE_PREFLASH
+
+  // Check if we should use the DELAY_SENSE analog value to determine the
+  // timeout to trigger the flash.
+  if (OT_SM_MAX_BURSTS_TO_IGNORE == ot_sm_data.bursts_to_ignore) {
+    ot_sm_data.trigger_timeout_ms = OT_ADC_read_delay_sense();
+    // Ensure that trigger_timeout_ms is non-zero (precondition for the
+    // implementation in the PROVISIONAL state)
+    if (0 == ot_sm_data.trigger_timeout_ms) {
+      ot_sm_data.trigger_timeout_ms = OT_SM_PROVISIONAL_TIMEOUT_MS;
+    }
+  }
+  else { // Use default value for the trigger_timeout
+    ot_sm_data.trigger_timeout_ms = OT_SM_PROVISIONAL_TIMEOUT_MS;
+  }
+
   GREEN_LED_ON(); // Turn ON GREEN LED to show we're starting
-  ot_sm_data.timeout_ms = OT_SM_INIT_TIMEOUT_MS;
+  ot_sm_data.state_timeout_ms = OT_SM_INIT_TIMEOUT_MS;
   OT_TIMER_start(); // sends TIMEOUT events every ~1msec
   return;
 }
@@ -181,7 +198,7 @@ static void ot_sm_init_entry(void) {
  *============================================================================*/
 static void ot_sm_init_action(OT_SM_EVENT_T event) {
   if (OT_SM_EVENT_TIMEOUT == event) {
-    if (0 == --ot_sm_data.timeout_ms) {
+    if (0 == --ot_sm_data.state_timeout_ms) {
       ot_sm_set_state(OT_SM_STATE_READY);
     }
   }
@@ -200,7 +217,7 @@ static void ot_sm_init_action(OT_SM_EVENT_T event) {
 static void ot_sm_init_exit(void) {
   // cancel/stop state timer
   OT_TIMER_stop();
-  ot_sm_data.timeout_ms = 0;
+  ot_sm_data.state_timeout_ms = 0;
   GREEN_LED_OFF(); // Turn off GREEN LED to indicate we're moving to READY
   return;
 }
@@ -217,10 +234,10 @@ static void ot_sm_ready_entry(void) {
   ot_sm_data.burst_count = 0; // Reset our internal counters
 #if defined(WAKEUP_BUTTON)
   // Set a timer to enter sleep if there is no flash/user activity
-  ot_sm_data.timeout_ms = OT_SM_READY_TIMEOUT_MS;
+  ot_sm_data.state_timeout_ms = OT_SM_READY_TIMEOUT_MS;
   OT_TIMER_start(); // sends TIMEOUT events every ~1msec  return;
-
-  // Enable the Button Interrupt (in case user checks to see if we are awake)
+  // Enable the Button Interrupt (in case user checks to see if we are awake or
+  // requests us to re-read settings)
   BUTTON_ENABLE();
 #endif // WAKEUP_BUTTON
 }
@@ -236,24 +253,26 @@ static void ot_sm_ready_entry(void) {
 static void ot_sm_ready_action(OT_SM_EVENT_T event) {
   if (OT_SM_EVENT_FLASH_DETECTED == event) {
     ++ot_sm_data.burst_count;
-#if defined(IGNORE_PREFLASH)
     // If we've exceeded the number of bursts to ignore we are done here
-    if (ot_sm_data.burst_count > ot_sm_data.bursts_to_ignore) {
+    // (which happens when bursts_to_ignore is 0)
+    if (0 == ot_sm_data.bursts_to_ignore) {
       ot_sm_set_state(OT_SM_STATE_CONFIRMED);
     }
-    else
-#endif // IGNORE_PREFLASH
-      { ot_sm_set_state(OT_SM_STATE_PROVISIONAL); }
+    else {
+      // Go to PROVISIONAL; it will set the appropriate timeout
+      ot_sm_set_state(OT_SM_STATE_PROVISIONAL);
+    }
   }
 #if defined(WAKEUP_BUTTON)
   else if (OT_SM_EVENT_TIMEOUT == event) {
-    if (0 == --ot_sm_data.timeout_ms) { // Waiting period has expired
+    if (0 == --ot_sm_data.state_timeout_ms) { // Waiting period has expired
       // We waited long enough for flash/user action
       ot_sm_set_state(OT_SM_STATE_SLEEPING);
     }
   }
   else if (OT_SM_EVENT_BUTTON_PRESS == event) {
-    // User checking if we are awake. Go to INIT to show the GREEN LED.
+    // User checking if we are awake (or requesting us to re-read settings).
+    // Go back to INIT to show the GREEN LED.
     ot_sm_set_state(OT_SM_STATE_INIT);
   }
 #endif // WAKEUP_BUTTON
@@ -272,10 +291,9 @@ static void ot_sm_ready_action(OT_SM_EVENT_T event) {
 static void ot_sm_ready_exit(void) {
 #if defined(WAKEUP_BUTTON)
   BUTTON_DISABLE();
-
   // cancel/stop state timer
   OT_TIMER_stop();
-  ot_sm_data.timeout_ms = 0;
+  ot_sm_data.state_timeout_ms = 0;
 #endif // WAKEUP_BUTTON
   return;
 }
@@ -290,7 +308,8 @@ static void ot_sm_ready_exit(void) {
  *============================================================================*/
 static void ot_sm_provisional_entry(void) {
   // If we entered this state we just detected ONE flash burst
-  ot_sm_data.timeout_ms = OT_SM_PROVISIONAL_TIMEOUT_MS;
+  // The trigger_timeout_ms has been assigned the right value in INIT state
+  ot_sm_data.state_timeout_ms = ot_sm_data.trigger_timeout_ms;
   OT_TIMER_start(); // sends TIMEOUT events every ~1msec
   return;
 }
@@ -308,32 +327,31 @@ static void ot_sm_provisional_action(OT_SM_EVENT_T event) {
     // Possibly part of the 'red eye' reduction or 'pre-flashes'
     // Increment our count of flash bursts detected
     ++ot_sm_data.burst_count;
-#if defined(IGNORE_PREFLASH)
     // If we've exceeded the number of bursts to ignore we are done here
-    if (ot_sm_data.burst_count > ot_sm_data.bursts_to_ignore) {
+    if ((ot_sm_data.bursts_to_ignore < OT_SM_MAX_BURSTS_TO_IGNORE) &&
+        (ot_sm_data.burst_count > ot_sm_data.bursts_to_ignore)) {
       ot_sm_set_state(OT_SM_STATE_CONFIRMED);
     }
     else {
-#endif // IGNORE_PREFLASH
+      // Whether the user has configured a timeout or not, the correct value
+      // has ben assigned to trigger_timeout_ms in INIT state.
       // reset our state timer
-      ot_sm_data.timeout_ms = OT_SM_PROVISIONAL_TIMEOUT_MS;
+      ot_sm_data.state_timeout_ms = ot_sm_data.trigger_timeout_ms;
       OT_TIMER_start(); // sends TIMEOUT events every ~1msec
       // stay in this state
-#if defined(IGNORE_PREFLASH)
     }
-#endif // IGNORE_PREFLASH
   }
   else if (OT_SM_EVENT_TIMEOUT == event) {
-    if (0 == --ot_sm_data.timeout_ms) { // Waiting period has expired
-      // We waited long enough after the last burst.
+    if (0 == --ot_sm_data.state_timeout_ms) { // Waiting period has expired
       // No more 'red eye' or 'preflashes' are incoming.
-#if defined(IGNORE_PREFLASH)
-      // If we timed out waiting for pre-flashes something went wrong
-      // go back to INIT
-      ot_sm_set_state(OT_SM_STATE_INIT);
-#else
-      ot_sm_set_state(OT_SM_STATE_CONFIRMED);
-#endif // IGNORE_PREFLASH
+      // Go to CONFIRMED if user had configured a timeout
+      // Otherwise go to INIT as the right number of preflashes didn't arrive.
+      if (OT_SM_MAX_BURSTS_TO_IGNORE == ot_sm_data.bursts_to_ignore) {
+          ot_sm_set_state(OT_SM_STATE_CONFIRMED);
+      }
+      else {
+          ot_sm_set_state(OT_SM_STATE_INIT);
+      }
     }
   }
   // Ignore all other events and stay in the same state
@@ -351,7 +369,7 @@ static void ot_sm_provisional_action(OT_SM_EVENT_T event) {
 static void ot_sm_provisional_exit(void) {
   // cancel/stop state timer
   OT_TIMER_stop();
-  ot_sm_data.timeout_ms = 0;
+  ot_sm_data.state_timeout_ms = 0;
   return;
 }
 /*==============================================================================
@@ -370,7 +388,7 @@ static void ot_sm_confirmed_entry(void) {
 
   RED_LED_ON(); // Signal that we triggered
   // set a state timer to turn off the RED LED
-  ot_sm_data.timeout_ms = OT_SM_CONFIRMED_TIMEOUT_MS;
+  ot_sm_data.state_timeout_ms = OT_SM_CONFIRMED_TIMEOUT_MS;
   OT_TIMER_start();
   return;
 }
@@ -385,7 +403,7 @@ static void ot_sm_confirmed_entry(void) {
  *============================================================================*/
 static void ot_sm_confirmed_action(OT_SM_EVENT_T event) {
   if (OT_SM_EVENT_TIMEOUT == event) {
-    if (0 == --ot_sm_data.timeout_ms) { // Waiting period has expired
+    if (0 == --ot_sm_data.state_timeout_ms) { // Waiting period has expired
       ot_sm_set_state(OT_SM_STATE_INIT);
     }
   }
@@ -403,7 +421,7 @@ static void ot_sm_confirmed_action(OT_SM_EVENT_T event) {
  *============================================================================*/
 static void ot_sm_confirmed_exit(void) {
   OT_TIMER_stop();
-  ot_sm_data.timeout_ms = 0;
+  ot_sm_data.state_timeout_ms = 0;
   RED_LED_OFF();
   return;
 }

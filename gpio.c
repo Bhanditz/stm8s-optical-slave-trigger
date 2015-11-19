@@ -66,11 +66,10 @@ void OT_GPIO_init(OT_GPIO_CB_T *cb, void *cbarg) {
   BUTTON_DISABLE();
 #endif // WAKEUP_BUTTON
 
-#if defined(IGNORE_PREFLASH)
   GPIO_Init(DIP0_PORT, DIP0_PIN, DIP0_MODE);
   GPIO_Init(DIP1_PORT, DIP1_PIN, DIP1_MODE);
   GPIO_Init(DIP2_PORT, DIP2_PIN, DIP2_MODE);
-#endif // IGNORE_PREFLASH
+
   return;
 }
 /*==============================================================================
@@ -82,7 +81,6 @@ void OT_GPIO_init(OT_GPIO_CB_T *cb, void *cbarg) {
  * @caution
  * @notes
  *============================================================================*/
-#if defined(IGNORE_PREFLASH)
 uint8_t OT_GPIO_bursts_to_ignore(void) {
   // Interpret DIP2, DIP1, DIP0 as a binary value
   uint8_t retval = 0;
@@ -97,7 +95,6 @@ uint8_t OT_GPIO_bursts_to_ignore(void) {
   }
   return retval;
 }
-#endif // IGNORE_PREFLASH
 /*==============================================================================
  * DESCRIPTION:
  * @param

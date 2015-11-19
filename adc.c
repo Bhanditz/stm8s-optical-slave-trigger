@@ -1,15 +1,12 @@
 /*==============================================================================
- * MODULE: main
- * DESCRIPTION: The main module for the Optical Slave Trigger
+ * MODULE: ADC
+ * DESCRIPTION: Implementation of the ADC module
  *============================================================================*/
 /*==============================================================================
  * INCLUDES
  *============================================================================*/
 #include "config.h"
-#include "gpio.h"
-#include "timer.h"
 #include "adc.h"
-#include "state_machine.h"
 /*==============================================================================
  * CONSTANTS
  *============================================================================*/
@@ -22,9 +19,6 @@
 /*==============================================================================
  * LOCAL FUNCTION PROTOTYPES
  *============================================================================*/
-// Callbacks
-static OT_TIMER_CB_T ot_timer_cb;
-static OT_GPIO_CB_T  ot_gpio_cb;
 /*==============================================================================
  * LOCAL VARIABLES
  *============================================================================*/
@@ -34,47 +28,6 @@ static OT_GPIO_CB_T  ot_gpio_cb;
 /*==============================================================================
  * LOCAL FUNCTIONS
  *============================================================================*/
-/*==============================================================================
- * DESCRIPTION:
- * @param
- * @return
- * @precondition
- * @postcondition
- * @caution
- * @notes
- *============================================================================*/
-// Called by Timer module's interrupt upon expiry of a period (1msec)
-static void ot_timer_cb(void *cbarg) {
-  (void)cbarg; // Unused
-  // Send Timeout event to State Machine
-  OT_SM_execute(OT_SM_EVENT_TIMEOUT);
-  return;
-}
-/*==============================================================================
- * DESCRIPTION:
- * @param
- * @return
- * @precondition
- * @postcondition
- * @caution
- * @notes
- *============================================================================*/
-// Called by the GPIO module's interrupt upon detection of a flash burst
-// or wake-up button press
-static void ot_gpio_cb(GPIO_TypeDef *port, void *cbarg) {
-  (void)cbarg; // Unused
-  if (TRIGGER_IN_PORT == port) {
-    // Send Flash Detected event to State Machine
-    OT_SM_execute(OT_SM_EVENT_FLASH_DETECTED);
-  }
-#if defined(WAKEUP_BUTTON)
-  else if (BUTTON_DET_PORT == port) {
-    // Send Button Press event to State Machine
-    OT_SM_execute(OT_SM_EVENT_BUTTON_PRESS);
-  }
-#endif // WAKEUP_BUTTON
-  return;
-}
 /*==============================================================================
  * EXPORTED (GLOBAL) FUNCTIONS
  *============================================================================*/
@@ -87,21 +40,34 @@ static void ot_gpio_cb(GPIO_TypeDef *port, void *cbarg) {
  * @caution
  * @notes
  *============================================================================*/
-/*============================================================================*/
-void main(void) {
-  /* Config Clock - N/A (Default is 2MHz) */
-  OT_GPIO_init(ot_gpio_cb, (void*)0);
-  OT_TIMER_init(ot_timer_cb, (void*)0);
-  OT_ADC_init();
-  OT_SM_init();
-  enableInterrupts();
-  while (1) {
-#if defined(WAKEUP_BUTTON)
-    // Deep sleep (halt) when we want to wake up only due to an external
-    // interrupt
-    if (OT_SM_STATE_SLEEPING == OT_SM_get_state()) { halt(); }
-    else
-#endif // WAKEUP_BUTTON
-    { wfi(); }
-  }
+void OT_ADC_init(void) {
+  // First configure the GPIO for analog
+  GPIO_Init(DELAY_SENSE_PORT, DELAY_SENSE_PIN, DELAY_SENSE_MODE);
+  // Set-up the ADC
+  ADC1_DeInit();
+  ADC1_Init(ADC1_CONVERSIONMODE_SINGLE, DELAY_SENSE_ADC_CHANNEL,
+            ADC1_PRESSEL_FCPU_D18, ADC1_EXTTRIG_TIM, DISABLE, ADC1_ALIGN_RIGHT,
+            DELAY_SENSE_SCHMTRIG_CHANNEL, DISABLE);
+  ADC1_Cmd(DISABLE);
+  return;
 }
+/*==============================================================================
+ * DESCRIPTION:
+ * @param
+ * @return
+ * @precondition
+ * @postcondition
+ * @caution
+ * @notes
+ *============================================================================*/
+uint8_t OT_ADC_read_delay_sense(void) {
+  uint16_t retval = 0;
+  ADC1_Cmd(ENABLE);
+  ADC1_StartConversion();
+  while (RESET == ADC1_GetFlagStatus(ADC1_FLAG_EOC));
+  retval = ADC1_GetConversionValue();
+  ADC1_Cmd(DISABLE);
+  // The ADC1 sampling resolution is 10-bit and we want to return 8-bit values
+  return (retval >> 2);
+}
+/*============================================================================*/

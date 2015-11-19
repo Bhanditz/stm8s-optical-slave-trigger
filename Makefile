@@ -4,7 +4,7 @@ MCUPART = stm8s105
 MCUCFLAG = STM8S105
 STM8FLASH = /home/roshan/bin/stm8flash
 
-SRCS = main.c gpio.c timer.c state_machine.c
+SRCS = main.c gpio.c timer.c adc.c state_machine.c
 OBJS = $(SRCS:.c=.rel)
 ASMS = $(SRCS:.c=.asm)
 LSTS = $(SRCS:.c=.lst)

@@ -54,19 +54,27 @@ extern "C"
   #define BUTTON_DET_EXTI_SENSITIVITY    EXTI_SENSITIVITY_FALL_ONLY
 #endif // WAKEUP_BUTTON
 
-#if defined(IGNORE_PREFLASH)
-  #define DIP0_PORT    GPIOD
-  #define DIP0_PIN     GPIO_PIN_2
-  #define DIP0_MODE    GPIO_MODE_IN_PU_NO_IT
+// DIP[2:0] switches to set number of pre-flash bursts to ignore (0-6)
+#define DIP0_PORT    GPIOD
+#define DIP0_PIN     GPIO_PIN_2
+#define DIP0_MODE    GPIO_MODE_IN_PU_NO_IT
 
-  #define DIP1_PORT    GPIOD
-  #define DIP1_PIN     GPIO_PIN_4
-  #define DIP1_MODE    GPIO_MODE_IN_PU_NO_IT
+#define DIP1_PORT    GPIOD
+#define DIP1_PIN     GPIO_PIN_4
+#define DIP1_MODE    GPIO_MODE_IN_PU_NO_IT
 
-  #define DIP2_PORT    GPIOD
-  #define DIP2_PIN     GPIO_PIN_6
-  #define DIP2_MODE    GPIO_MODE_IN_PU_NO_IT
-#endif // IGNORE_PREFLASH
+#define DIP2_PORT    GPIOD
+#define DIP2_PIN     GPIO_PIN_6
+#define DIP2_MODE    GPIO_MODE_IN_PU_NO_IT
+
+#define MAX_DIP_SWITCHES   3
+
+// Analog 'knob' for delay-based triggering when DIP[2:0] is set to 7.
+#define DELAY_SENSE_PORT    GPIOB
+#define DELAY_SENSE_PIN     GPIO_PIN_1
+#define DELAY_SENSE_MODE    GPIO_MODE_IN_FL_NO_IT
+#define DELAY_SENSE_ADC_CHANNEL       ADC1_CHANNEL_1
+#define DELAY_SENSE_SCHMTRIG_CHANNEL  ADC1_SCHMITTTRIG_CHANNEL1
 /*==============================================================================
  * MACROS
  *============================================================================*/

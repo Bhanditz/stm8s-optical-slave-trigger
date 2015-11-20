@@ -46,15 +46,9 @@ void OT_GPIO_init(OT_GPIO_CB_T *cb, void *cbarg) {
   ot_gpio_cb    = cb;
   ot_gpio_cbarg = cbarg;
 
-  GPIO_Init(SENSOR_ENABLE_PORT, SENSOR_ENABLE_PIN, GPIO_MODE_OUT_PP_LOW_SLOW);
-  SENSOR_ENABLE_ON();
-
-  GPIO_Init(TRIGGER_IN_PORT, TRIGGER_IN_PIN, TRIGGER_IN_MODE);
-  // TRIGGER_IN Sensitivity for Rising Edge
-  EXTI_SetExtIntSensitivity(TRIGGER_IN_EXTI_PORT, TRIGGER_IN_EXTI_SENSITIVITY);
-
-  TRIGGER_OUT_OFF(); // Do this first to prevent accidental turn ON
-  GPIO_Init(TRIGGER_OUT_PORT, TRIGGER_OUT_PIN, GPIO_MODE_OUT_PP_LOW_SLOW);
+  SENSOR_ON();
+  TRIGGER_IN_DISABLE();
+  TRIGGER_OUT_OFF();
 
   GPIO_Init(GREEN_LED_PORT, GREEN_LED_PIN, GPIO_MODE_OUT_PP_LOW_SLOW);
   GREEN_LED_OFF();
@@ -66,10 +60,7 @@ void OT_GPIO_init(OT_GPIO_CB_T *cb, void *cbarg) {
   BUTTON_DISABLE();
 #endif // WAKEUP_BUTTON
 
-  GPIO_Init(DIP0_PORT, DIP0_PIN, DIP0_MODE);
-  GPIO_Init(DIP1_PORT, DIP1_PIN, DIP1_MODE);
-  GPIO_Init(DIP2_PORT, DIP2_PIN, DIP2_MODE);
-
+  DIP_ENABLE();
   return;
 }
 /*==============================================================================

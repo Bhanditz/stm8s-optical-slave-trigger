@@ -239,6 +239,8 @@ static void ot_sm_ready_entry(void) {
   // requests us to re-read settings)
   BUTTON_ENABLE();
 #endif // WAKEUP_BUTTON
+  TRIGGER_IN_ENABLE(); // Enable Flash burst interrupt
+  return;
 }
 /*==============================================================================
  * DESCRIPTION:
@@ -288,6 +290,7 @@ static void ot_sm_ready_action(OT_SM_EVENT_T event) {
  * @notes
  *============================================================================*/
 static void ot_sm_ready_exit(void) {
+  TRIGGER_IN_DISABLE(); // Disable Flash burst interrupt
 #if defined(WAKEUP_BUTTON)
   BUTTON_DISABLE();
   // cancel/stop state timer
@@ -310,6 +313,7 @@ static void ot_sm_provisional_entry(void) {
   // The provisional_timeout_ms has been assigned the right value in INIT state
   ot_sm_data.state_timeout_ms = ot_sm_data.provisional_timeout_ms;
   OT_TIMER_start(); // sends TIMEOUT events every ~1msec
+  TRIGGER_IN_ENABLE(); // Enable Flash burst interrupt
   return;
 }
 /*==============================================================================
@@ -366,6 +370,7 @@ static void ot_sm_provisional_action(OT_SM_EVENT_T event) {
  * @notes
  *============================================================================*/
 static void ot_sm_provisional_exit(void) {
+  TRIGGER_IN_DISABLE(); // Disable Flash burst interrupt
   // cancel/stop state timer
   OT_TIMER_stop();
   ot_sm_data.state_timeout_ms = 0;
@@ -435,8 +440,9 @@ static void ot_sm_confirmed_exit(void) {
  *============================================================================*/
 #if defined(WAKEUP_BUTTON)
 static void ot_sm_sleeping_entry(void) {
-  // Enable the Button Interrupt
-  BUTTON_ENABLE();
+  DIP_DISABLE(); // Remove pull-ups from the DIP switches
+  SENSOR_OFF(); // Power down the Flash burst sensor
+  BUTTON_ENABLE(); // Enable the Button Interrupt
   return;
 }
 #endif // WAKEUP_BUTTON
@@ -469,8 +475,9 @@ static void ot_sm_sleeping_action(OT_SM_EVENT_T event) {
  *============================================================================*/
 #if defined(WAKEUP_BUTTON)
 static void ot_sm_sleeping_exit(void) {
-  // Disable the Button Interrupt
-  BUTTON_DISABLE();
+  BUTTON_DISABLE(); // Disable the Button Interrupt
+  SENSOR_ON(); // Power on the Flash burst sensor
+  DIP_ENABLE(); // Add pull-ups to the DIP switches
   return;
 }
 #endif // WAKEUP_BUTTON

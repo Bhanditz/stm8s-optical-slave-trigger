@@ -31,6 +31,7 @@ INCLUDES += -I/home/roshan/workspace/STM8S_StdPeriphLib/inc
 LIBPATHS += -L/home/roshan/workspace/STM8S_StdPeriphLib/lib
 CFLAGS += -m$(MCUFAM) --Werror -c $(INCLUDES)
 LFLAGS += -m$(MCUFAM) --out-fmt-ihx $(LIBPATHS)
+DEPFLAGS = -MT $@ -MMD -MP
 
 .PHONY: all flash clean_objs clean clean_deps distclean
 
@@ -57,13 +58,14 @@ distclean: clean clean_deps
 	@$(RM) -f config.h
 	@$(RM) -f Make.defs
 
-%.rel: %.c
-	@$(CC) $(CFLAGS) $< -o $@
+# See http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/
+# and the GNU make manual to understand the rule below
+%.rel: %.c %.d
+	@echo "CC: $<"
+	@$(CC) $(DEPFLAGS) $(CFLAGS) $< > $*.d.$$$$; \
+	 $(CC) $(CFLAGS) $< -o $@; \
+	 mv -f $*.d.$$$$ $*.d
 
-%.d: %.c
-	@set -e; rm -f $@; \
-         $(CC) -MM $(CFLAGS) $< > $@.$$$$; \
-         sed 's,\($*\)\.rel[ :]*,\1.rel $@ : ,g' < $@.$$$$ > $@; \
-         rm -f $@.$$$$
+%.d: ;
 
-include $(DEPS)
+-include $(DEPS)

@@ -1,0 +1,14 @@
+MCUPART = stm8s105
+MCUPART_UC := $(shell echo ${MCUPART} | tr '[:lower:]' '[:upper:]')
+
+LIBS = ${MCUPART_UC}.lib
+#INCLUDES := -I$(shell pwd)
+INCLUDES =
+LIBPATHS =
+CFLAGS = -D${MCUPART_UC}
+LFLAGS =
+
+# General Debug
+DEBUG=y
+# Support SLEEPING state and wake-up using BUTTON_DET
+WAKEUP_BUTTON=y
